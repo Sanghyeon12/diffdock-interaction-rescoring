@@ -7,9 +7,9 @@ import MDAnalysis as mda
 import prolif as plf
 from rdkit import Chem
 
-ROOT = "/home/jacks.local/sjun/docking_project/PoseBench"
-RESULTS_DIR = f"{ROOT}/forks/DiffDock/results/dockgen_pilot"
-GT_DIR = f"{ROOT}/data/dockgen_set"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+RESULTS_DIR = os.environ.get("DOCKGEN_RESULTS_DIR", os.path.dirname(SCRIPT_DIR))
+GT_DIR = os.environ.get("DOCKGEN_GT_DIR", os.path.join(RESULTS_DIR, "dockgen_set"))
 
 master = pd.read_csv(f"{RESULTS_DIR}/master_eval_table_n122.csv")
 scored = master[master["status"] == "scored"].copy()

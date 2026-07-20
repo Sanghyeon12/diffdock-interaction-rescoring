@@ -1,9 +1,9 @@
 import os, re, glob
 import pandas as pd
 
-ROOT = "/home/jacks.local/sjun/docking_project/PoseBench"
-RESULTS_DIR = f"{ROOT}/forks/DiffDock/results/dockgen_pilot"
-INPUT_CSV = f"{ROOT}/forks/DiffDock/inference/diffdock_dockgen_inputs.csv"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+RESULTS_DIR = os.environ.get("DOCKGEN_RESULTS_DIR", os.path.dirname(SCRIPT_DIR))
+INPUT_CSV = os.environ.get("DOCKGEN_INPUT_CSV", os.path.join(RESULTS_DIR, "diffdock_dockgen_inputs.csv"))
 BUST_CSV = f"{RESULTS_DIR}/bust_results.csv"
 
 ids_122 = pd.read_csv(INPUT_CSV)["complex_name"].tolist()

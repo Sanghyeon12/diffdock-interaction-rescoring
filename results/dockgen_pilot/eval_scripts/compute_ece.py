@@ -1,10 +1,12 @@
+import os
 import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-RESULTS_DIR = "/home/jacks.local/sjun/docking_project/PoseBench/forks/DiffDock/results/dockgen_pilot"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+RESULTS_DIR = os.environ.get("DOCKGEN_RESULTS_DIR", os.path.dirname(SCRIPT_DIR))
 df = pd.read_csv(f"{RESULTS_DIR}/master_eval_table_n122.csv")
 
 # only rows with BOTH a confidence score AND a ground-truth-labeled RMSD outcome
