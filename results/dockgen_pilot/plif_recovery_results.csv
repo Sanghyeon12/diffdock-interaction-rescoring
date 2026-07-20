@@ -1,0 +1,92 @@
+complex_id,plif_status,n_true_interactions,n_recovered,n_predicted_interactions,recovery
+5k45_2_GLU_1,ok,8.0,0.0,6.0,0.0
+6paa_1_ASP_2,ok,10.0,8.0,12.0,0.8
+4kgx_1_CTP_5,ok,12.0,0.0,2.0,0.0
+1sij_1_PCD_0,"error: ValueError: van der Waals radius for atom 'Mo' not found. Either specify the missing radii in the `vdwradii` parameter for the VdWContact interaction, or use a preset different from the current",,,,
+4phs_1_UDP_0,error: OverflowError: Python integer -4 out of bounds for uint32,,,,
+1tkg_1_SSA_0,ok,12.0,2.0,12.0,0.16666666666666666
+1u8u_1_OCA_0,ok,12.0,0.0,4.0,0.0
+1v2g_1_OCA_0,ok,12.0,0.0,4.0,0.0
+5hqx_1_EDZ_0,ok,10.0,6.0,12.0,0.6
+2v7u_1_SAM_2,ok,20.0,0.0,0.0,0.0
+4fyv_1_DCP_2,ok,4.0,0.0,0.0,0.0
+4pfx_1_UDP_0,error: OverflowError: Python integer -4 out of bounds for uint32,,,,
+4uoc_1_NCN_1,ok,22.0,0.0,20.0,0.0
+3o7j_1_2AL_0,ok,10.0,8.0,12.0,0.8
+5k3o_2_ASP_0,ok,16.0,0.0,14.0,0.0
+3se5_1_ANP_2,ok,16.0,0.0,0.0,0.0
+5fxd_1_H7Y_1,ok,10.0,4.0,8.0,0.4
+4cdn_2_FAD_0,error: OverflowError: Python integer -4 out of bounds for uint32,,,,
+4tvd_1_GLC_0,ok,4.0,0.0,8.0,0.0
+6yap_1_OHZ_0,ok,8.0,0.0,0.0,0.0
+6o70_1_ACK_1,ok,10.0,0.0,4.0,0.0
+4cnl_1_CHT_1,ok,0.0,0.0,2.0,
+2gag_1_FOA_0,ok,4.0,0.0,0.0,0.0
+6ur1_2_AT3_0,ok,4.0,0.0,8.0,0.0
+3gf4_1_FAD_1,ok,24.0,0.0,0.0,0.0
+3ub7_1_ACM_1,ok,6.0,0.0,0.0,0.0
+4idk_1_1FE_0,error: OverflowError: Python integer -1 out of bounds for uint32,,,,
+6yaq_1_OHZ_0,ok,6.0,2.0,2.0,0.3333333333333333
+3ad9_1_NAD_0,ok,22.0,0.0,0.0,0.0
+2hs3_1_FGR_0,ok,20.0,0.0,0.0,0.0
+2vdf_1_OCT_0,ok,4.0,0.0,10.0,0.0
+4uuw_1_AMP_0,ok,6.0,0.0,2.0,0.0
+2q37_1_3AL_0,ok,16.0,2.0,6.0,0.125
+3inr_1_GDU_0,ok,16.0,0.0,20.0,0.0
+2v7v_1_5FD_0,ok,10.0,0.0,0.0,0.0
+1hg0_1_SIN_1,ok,10.0,0.0,0.0,0.0
+2ze9_1_PD7_0,ok,16.0,2.0,6.0,0.125
+4phr_1_UDP_0,error: OverflowError: Python integer -4 out of bounds for uint32,,,,
+2zd0_1_TRP_9,ok,14.0,0.0,4.0,0.0
+5f2t_1_PLM_0,ok,12.0,2.0,2.0,0.16666666666666666
+5b5s_1_BOG_0,ok,2.0,0.0,2.0,0.0
+5hmr_1_FDZ_0,ok,2.0,0.0,10.0,0.0
+2wwc_1_CHT_2,ok,0.0,0.0,12.0,
+4b4v_1_L34_0,ok,18.0,0.0,0.0,0.0
+3zjx_1_BOG_0,ok,4.0,0.0,0.0,0.0
+5fxf_1_BEZ_0,ok,4.0,0.0,4.0,0.0
+6uqy_2_AT3_0,ok,12.0,8.0,8.0,0.6666666666666666
+5hhz_1_ZME_0,ok,2.0,0.0,8.0,0.0
+6wyz_1_DGL_1,ok,12.0,0.0,12.0,0.0
+3ub9_1_NHY_1,ok,8.0,6.0,12.0,0.75
+4tvd_1_BGC_4,ok,8.0,0.0,2.0,0.0
+1qaw_1_TRP_7,ok,10.0,0.0,0.0,0.0
+3ada_1_NAD_0,ok,20.0,0.0,0.0,0.0
+2v7t_1_SAH_4,ok,24.0,0.0,0.0,0.0
+5hw0_1_GLU_2,ok,10.0,4.0,4.0,0.4
+4xfm_1_THE_0,ok,10.0,2.0,2.0,0.2
+3s6a_1_ANP_0,ok,14.0,10.0,14.0,0.7142857142857143
+5k4h_2_GLU_3,ok,8.0,0.0,6.0,0.0
+6ep5_1_ADP_1,ok,16.0,0.0,16.0,0.0
+2gf3_2_FOA_1,ok,4.0,0.0,0.0,0.0
+2xta_1_ACO_0,ok,12.0,0.0,2.0,0.0
+2v7w_1_5FD_0,ok,14.0,12.0,16.0,0.8571428571428571
+2gag_1_NAD_0,ok,22.0,0.0,0.0,0.0
+1o72_2_PC_0,ok,4.0,0.0,4.0,0.0
+4u63_1_FAD_0,error: OverflowError: Python integer -3 out of bounds for uint32,,,,
+4rhe_1_FMN_6,ok,6.0,2.0,14.0,0.3333333333333333
+3wrb_1_GDE_0,"error: ValueError: van der Waals radius for atom 'Fe' not found. Either specify the missing radii in the `vdwradii` parameter for the VdWContact interaction, or use a preset different from the current",,,,
+5fxe_1_CIY_1,ok,8.0,2.0,6.0,0.25
+2r4e_1_13P_0,ok,14.0,6.0,8.0,0.42857142857142855
+2wr8_1_SAH_1,error: OverflowError: Python integer -2 out of bounds for uint32,,,,
+2vfu_1_MTL_0,ok,12.0,6.0,10.0,0.5
+4oal_2_245_0,ok,2.0,2.0,14.0,1.0
+3eca_1_ASP_3,ok,16.0,0.0,12.0,0.0
+6ea9_1_9BG_0,ok,18.0,0.0,30.0,0.0
+6xb3_3_9BG_1,ok,24.0,0.0,24.0,0.0
+2zcz_2_TRP_3,ok,16.0,0.0,8.0,0.0
+5ida_1_BMA_0,ok,8.0,0.0,6.0,0.0
+1rqp_1_SAM_0,ok,22.0,8.0,22.0,0.36363636363636365
+2q6k_1_ADN_1,"error: KeyError: ResidueId(GLU, 74, A)",,,,
+6yao_1_OJ2_0,ok,6.0,2.0,2.0,0.3333333333333333
+5fiu_1_Y3J_3,ok,18.0,0.0,6.0,0.0
+6qkr_1_FAD_0,"error: ValueError: van der Waals radius for atom 'Fe' not found. Either specify the missing radii in the `vdwradii` parameter for the VdWContact interaction, or use a preset different from the current",,,,
+1uf5_1_CDT_0,ok,18.0,6.0,8.0,0.3333333333333333
+3jqm_1_GTP_5,ok,14.0,0.0,0.0,0.0
+4h2f_1_ADN_0,ok,6.0,0.0,2.0,0.0
+1tke_1_SER_0,ok,10.0,6.0,10.0,0.6
+4o95_1_245_0,ok,2.0,2.0,6.0,1.0
+6o6y_1_ACK_0,ok,8.0,0.0,10.0,0.0
+4ydx_1_TCE_0,ok,6.0,0.0,0.0,0.0
+4qa8_1_PJZ_0,ok,20.0,8.0,22.0,0.4
+2hk9_1_SKM_0,ok,12.0,10.0,12.0,0.8333333333333334

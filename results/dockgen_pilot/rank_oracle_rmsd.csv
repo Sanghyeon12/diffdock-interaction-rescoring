@@ -1,0 +1,4 @@
+complex_id,n_ranks,status,min_rmsd,oracle_success,n_ranks_lt2A
+5k45_2_GLU_1,10,ok,,False,0
+6paa_1_ASP_2,10,ok,,True,1
+4kgx_1_CTP_5,10,ok,,False,0
