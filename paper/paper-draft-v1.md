@@ -2,7 +2,7 @@
 type: thesis
 status: draft
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-07-21
 tags: [thesis, manuscript, calibration, rescoring, plif, dockgen-e]
 ---
 
@@ -25,6 +25,54 @@ tags: [thesis, manuscript, calibration, rescoring, plif, dockgen-e]
 
 ---
 
+> **ERRATUM (2026-07-21): the PLIF interaction-recovery rate and the confidence-vs-PLIF-recovery
+> correlation originally reported in this draft (pooled recovery 15.47%, 138/892, n=80; Spearman
+> rho = -0.149, n=78) are INVALIDATED. Do not cite these two numbers.** A code audit
+> (cross-checking `eval_scripts/compute_plif.py` — this project's "V1" PLIF pipeline — against
+> `diffdock_dockgen_inputs.csv`) found that V1 scores every predicted ligand pose's interaction
+> fingerprint against the **crystal protein file** (`protein_processed.pdb`) rather than the
+> **ESMFold-predicted protein file DiffDock-L actually docked into**
+> (`holo_aligned_predicted_protein.pdb`). Every complex's PLIF fingerprint was therefore computed
+> in a structural context DiffDock-L never used, which invalidates the resulting numbers
+> regardless of how correctly the downstream pooling and correlation arithmetic were done. Every
+> occurrence of the retracted numbers below is marked **[INVALIDATED — see §4.4a]** and left in
+> place rather than deleted, to keep an honest record of what was measured and later retracted.
+> **Not affected:** top-1 RMSD < 2 Å success (14/122 = 11.48%) and ECE (0.203) — these come from a
+> separate computation path (`build_master_table.py`, `compute_ece.py`) that does not depend on
+> which protein file PLIF scoring used.
+>
+> **Update (2026-07-21, hybrid recomputation complete): the manuscript now has a valid replacement
+> PLIF recovery number.** A hybrid pipeline combining V2's correct protein-file handling (scoring
+> against the ESMFold-predicted protein DiffDock-L actually docked into) with V1's non-redundant
+> 9-type ProLIF interaction list was run over the matched n=82 subset of DockGen-E. Rank-1
+> (confidence-selected) pooled PLIF interaction recovery is **47/509 = 9.23%** (per-complex mean
+> 8.82%, median 0%); the rank1–10 oracle (best of the 10 retained candidates per complex) is
+> **64/509 = 12.57%** (per-complex mean 11.86%, median 0%), an oracle headroom of **+3.34
+> percentage points pooled (+3.05 points per-complex mean)**. One complex (`2wwc_1_CHT_2`) has zero
+> true interactions under this 9-type list, so its per-complex recovery is undefined (NaN); it
+> contributes 0/0 to the pooled figures and is excluded from the mean/median (n=81 non-null). These
+> two numbers (9.23% baseline, 12.57% oracle) are this draft's reported PLIF recovery figures,
+> replacing the retracted 15.47%. Source: `hybrid_plif_baseline_matched82.csv` and
+> `hybrid_plif_oracle_matched82.csv` (scripts `hybrid_plif_baseline.py`, `hybrid_plif_oracle.py`),
+> under `results/dockgen_pilot_eval/` on the project's HPC environment. The confidence-vs-PLIF-
+> recovery correlation against these hybrid values was still unmeasured at this point in the
+> project — see the next update below, which reports it. An interaction between the two
+> oracle-headroom results (RMSD: +6.56 points; PLIF: +3.34 points) also now informs the Phase 2
+> framing — see §3.2 and §4.5. Full detail in §4.4a.
+>
+> **Update (2026-07-21, confidence-vs-PLIF-recovery correlation now computed): no significant
+> relationship found.** All 82 hybrid baseline rows matched a `confidence_rank1` value; the one
+> complex with zero true interactions and undefined recovery (`2wwc_1_CHT_2`) was excluded, leaving
+> n=81. Spearman rho = 0.046167845505, two-sided p = 0.682340974058; an independent average-rank
+> Pearson calculation reproduced the same rho exactly. **The previous V1-derived rho = -0.149
+> remains INVALIDATED and was not reused.** As with that earlier, now-retracted result, we read
+> this only as a limited, non-causal statement: no statistically significant monotonic relationship
+> between DiffDock-L's confidence score and this corrected PLIF-recovery rate was observed in this
+> sample. Source: `eval_scripts/correlate_hybrid_plif.py`,
+> `results/dockgen_pilot_eval/hybrid_plif_confidence_spearman.json`. Full detail in §4.4a.
+
+---
+
 ## Abstract
 
 DiffDock-L selects its output pose using a learned confidence score trained to predict whether
@@ -36,22 +84,33 @@ predicts recovery of the specific protein–ligand interactions (hydrogen bonds,
 run DiffDock-L on all 122 complexes of the DockGen-E cross-docking benchmark and evaluate the
 raw confidence score directly. Of 122 complexes, 91 produced RMSD-scorable poses; on this
 subset, top-1 RMSD < 2 Å success is 14/122 (11.48%, denominator fixed at 122 with runtime
-failures counted as non-success), expected calibration error (ECE) is 0.203, and pooled PLIF
-interaction recovery is 15.47% (138/892 reference interactions, computed over 80 of the 91
-RMSD-scored complexes). We test whether confidence tracks PLIF recovery and find no
-statistically significant rank correlation (Spearman rho = -0.149, n=78, t(76) = -1.31, not
-significant at alpha=0.05, two-tailed). Taken together, these numbers show that top-1 success
-is low, calibration is poor, and confidence shows no statistically significant relationship to
-whether the selected pose reproduces the correct protein–ligand interactions (at this sample
-size); whether this reflects a
-selection failure — the correct pose is sampled but not chosen, which rescoring could fix — or
-a sampling failure — the correct pose is never generated, which rescoring cannot fix — is not
-yet established (§4.5). Building on this diagnosis, we describe (design only; not yet executed) an Interaction-Aware
-Rescoring model that reranks DiffDock-L's already-sampled candidate poses using
-complex-invariant ProLIF interaction-type counts, pharmacophore geometry, and ensemble
-consistency, trained on PDBBind and evaluated, without retraining any part of DiffDock-L, on
-the same 122-complex cross-docking set. We report the measured diagnosis in full and the
-correction as a pre-registered protocol, including a mandatory oracle-headroom gate that must
+failures counted as non-success) and expected calibration error (ECE) is 0.203. An earlier
+reported pooled PLIF interaction recovery of 15.47% (138/892, n=80) and its confidence-vs-PLIF-
+recovery rank correlation (Spearman rho = -0.149, n=78) **were computed against the wrong
+(crystal, not ESMFold-predicted) protein file and are INVALIDATED [see §4.4a].** A hybrid
+recomputation using the correct protein file and a non-redundant 9-type interaction list gives a
+valid replacement: pooled PLIF interaction recovery of the confidence-selected rank-1 pose is
+**9.23%** (47/509, matched n=82), against a rank1–10 oracle upper bound of **12.57%** (64/509) —
+an oracle headroom of +3.34 percentage points. A recomputed Spearman correlation between
+confidence and this corrected PLIF-recovery rate finds no statistically significant monotonic
+relationship (rho = 0.046, two-sided p = 0.682, n=81); the previous, now-invalidated rho = -0.149
+was not reused. Taken together, the valid results show low top-1 RMSD success, poor calibration,
+and low PLIF recovery with only modest room to improve it by reranking alone, and no measured
+relationship between confidence and this chemical-correctness signal. An oracle-headroom analysis of
+DiffDock-L's already-sampled candidate pool helps explain why the two correctness criteria give
+such different pictures. RMSD headroom is substantial (14/122 to 22/122, +6.56 percentage points):
+a better-RMSD pose is often already sitting in the candidate pool, and confidence simply is not
+picking it, a selection problem reranking could fix. PLIF headroom is small (+3.34 points): the
+candidate pool rarely contains a chemically much better alternative in the first place, so no
+amount of reranking recovers much there (§4.5). Building on this diagnosis, we describe (design
+only; not yet executed) an Interaction-Aware Rescoring model that reranks DiffDock-L's
+already-sampled candidate poses using complex-invariant ProLIF interaction-type counts,
+pharmacophore geometry, and ensemble consistency, trained on PDBBind and evaluated without
+retraining any part of DiffDock-L, on the same 122-complex cross-docking set. The RMSD-side
+headroom alone is our justification for building this model; we do not claim it will meaningfully
+improve PLIF-based chemical correctness, and treat any PLIF-recovery gain it shows as a secondary,
+exploratory finding rather than a headline result. We report the measured diagnosis in full and
+the correction as a pre-registered protocol, including a mandatory oracle-headroom gate that must
 pass before the rescoring model is trained at all.
 
 ---
@@ -88,35 +147,52 @@ chemically orthogonal signal back into a docking model's own pose-selection mech
 
 This project addresses both gaps with a diagnose-then-correct structure. Phase 1 measures the
 calibration of DiffDock-L's raw confidence score under cross-docking shift, using the DockGen-E
-benchmark (122 complexes with pockets dissimilar to PDBBind), and reports — for the first time
-on this benchmark — PLIF interaction recovery alongside RMSD-based top-1 accuracy. We also test whether the
-confidence score itself tracks PLIF recovery, the way it is trained to track RMSD, and find no
-statistically significant rank correlation (Spearman rho = -0.149, n=78, t(76) = -1.31; §3.1,
-§4.4). **These Phase 1 measurements are complete** and are the primary reported result of this
-draft: on the 91 of 122 complexes with RMSD-scorable output, top-1 RMSD < 2 Å success is
-11.48% (14/122), ECE is 0.203, pooled PLIF recovery is 15.47% (over 80 of the 91 scored
-complexes), and confidence shows no significant rank correlation with PLIF recovery (§4.4).
+benchmark (122 complexes with pockets dissimilar to PDBBind), and reports — for the first time on
+this benchmark — PLIF interaction recovery alongside RMSD-based top-1 accuracy. An earlier reported
+version of the PLIF recovery rate (15.47%) and a test of whether confidence tracks it (Spearman rho
+= -0.149, n=78, t(76) = -1.31) **[INVALIDATED — see §4.4a]: both were computed by a pipeline that
+scored the predicted ligand against the wrong (crystal, not ESMFold-predicted) protein file.** A
+hybrid recomputation against the correct protein file now gives a valid pooled PLIF recovery rate
+for the confidence-selected pose of 9.23% (47/509, matched n=82), against a rank1–10 oracle upper
+bound of 12.57% (64/509); a recomputed correlation between confidence and this corrected recovery
+rate finds no statistically significant monotonic relationship (Spearman rho = 0.046, two-sided
+p = 0.682, n=81). The RMSD-based Phase 1 measurements remain complete and valid and
+are the primary reported result of this draft: on the 91 of 122 complexes with RMSD-scorable
+output, top-1 RMSD < 2 Å success is 11.48% (14/122) and ECE is 0.203.
 Phase 2, building on that diagnosis,
 proposes an Interaction-Aware Rescoring model that reranks DiffDock-L's already-sampled candidate
-poses using PLIF-derived and pharmacophore features rather than confidence alone. **Phase 2 has
-been designed in detail — including a mandatory pre-registered gate that checks whether the
-candidate pose pool even contains a better answer than confidence currently selects — but has
-not been executed.** We report the Phase 1 diagnosis as a measured result and the Phase 2
-correction as a specified, not-yet-run protocol, and we are explicit throughout about which
-numbers are measurements and which are targets.
+poses using PLIF-derived and pharmacophore features rather than confidence alone. **Phase 2's
+mandatory pre-registered oracle-headroom gate (Step 0) has now been run** on the retained
+rank1–10 candidate pool: the RMSD gate clears the pre-registered +5-percentage-point bar (14/122 to
+22/122, +6.56 points), while the PLIF gate does not (9.23% to 12.57%, +3.34 points). We read this
+as two different diagnoses, not a contradiction — the RMSD headroom indicates a *selection*
+failure that reranking can address, while the small PLIF headroom indicates a *sampling*
+limitation that reranking cannot — and we proceed to build and evaluate the rescoring model on
+RMSD-selection grounds alone, without claiming that it will materially improve PLIF-based chemical
+correctness (§3.2, §4.5). We report the Phase 1 diagnosis and the Phase 2 gate outcome as measured
+results and the Phase 2 model itself as a specified, not-yet-run protocol, and we are explicit
+throughout about which numbers are measurements and which are targets.
 
 Contributions: (i) the first reported calibration analysis (ECE) of DiffDock-L's raw confidence
-score, alongside a first-reported PLIF interaction-recovery rate and a direct test of whether
-confidence tracks that recovery — it does not, at a statistically significant level (Spearman
-rho = -0.149, n=78, t(76) = -1.31) — on a leakage-controlled cross-docking benchmark
-(DockGen-E, n=122), including an honest accounting of a substantial fraction of complexes (31/122)
-for which the pipeline produces no scorable output at all; (ii) a fully specified,
-not-yet-executed Interaction-Aware Rescoring protocol that reranks DiffDock-L's existing candidate
-poses using complex-invariant interaction and pharmacophore features, with an oracle-headroom
-gate designed to prevent the project from training a model where no improvement is possible; and
-(iii) an explicit statement of what remains unmeasured — stratified (pocket-similarity)
-calibration, an in-distribution ECE anchor, and every Phase 2 accuracy number — so that this draft
-does not overstate what has actually been shown.
+score on a leakage-controlled cross-docking benchmark (DockGen-E, n=122), including an honest
+accounting of a substantial fraction of complexes (31/122) for which the pipeline produces no
+scorable output at all — plus a PLIF interaction-recovery rate (9.23% rank-1, 12.57% oracle, after
+a hybrid recomputation correcting an earlier protein-file bug, §4.4a) and its recomputed
+correlation with confidence (Spearman rho = 0.046, two-sided p = 0.682, n=81 — no statistically
+significant monotonic relationship, §4.4a) — **an earlier version of both numbers (15.47% recovery,
+rho = -0.149 correlation) [INVALIDATED — see §4.4a] was computed against the wrong (crystal, not
+ESMFold-predicted) protein file and has been superseded by the hybrid recomputation above**;
+(ii) a mandatory pre-registered oracle-headroom gate, now executed, showing that the RMSD-based
+candidate pool has meaningful headroom (+6.56 points) while the PLIF-based pool does not
+(+3.34 points) — used here to justify Phase 2 on RMSD-selection grounds while explicitly not
+claiming a PLIF-correctness improvement — together with two executed non-learned reranking
+comparators (B1 random, B3 classical affinity) that all cluster within an 11.12–12.30% band
+indistinguishable from raw confidence (§3.2, §4.5), plus a fully specified, not-yet-executed
+Interaction-Aware Rescoring protocol that reranks DiffDock-L's existing candidate poses using
+complex-invariant interaction and pharmacophore features; and (iii) an explicit statement of what
+remains unmeasured — stratified (pocket-similarity) calibration, an in-distribution ECE anchor,
+and every Phase 2 learned-model (M1/M1-abl) accuracy number — so that this draft does not overstate
+what has actually been shown.
 
 ---
 
@@ -215,13 +291,19 @@ Metrics are ECE, adaptive-binning ECE, Brier score, and reliability diagrams —
 and stratified by pocket similarity to training data (max TM-score for PoseX-CD, PLINDER SuCOS for
 DockGen-E) — plus risk–coverage / AURC as a comparator-semantics-free cross-model metric, and the
 confidence-vs-PLIF-recovery relationship as the second, chemically orthogonal evaluation axis.
-**The aggregate (non-stratified) ECE, the aggregate PLIF interaction-recovery rate, and the
-confidence-vs-PLIF-recovery rank correlation have all been computed** (§4): the correlation is
-not statistically significant (Spearman rho = -0.149, n=78, t(76) = -1.31). Stratified
-reliability diagrams, AURC, and the classical/recalibration comparators remain designed but
-unexecuted.
+**The aggregate (non-stratified) ECE has been computed and remains valid** (§4). An aggregate PLIF
+interaction-recovery rate and its correlation with confidence were also computed early on (pooled
+recovery 15.47%; Spearman rho = -0.149, n=78, t(76) = -1.31), but **[INVALIDATED — see §4.4a]:
+both were computed against the wrong (crystal, not ESMFold-predicted) protein file.** A hybrid
+recomputation against the correct protein file, using a non-redundant 9-type ProLIF interaction
+list, now gives a valid pooled PLIF recovery rate: 9.23% (47/509, matched n=82) for the
+confidence-selected rank-1 pose against a rank1–10 oracle upper bound of 12.57% (64/509, §4.4a).
+The confidence-vs-PLIF-recovery correlation has since been recomputed against this corrected data
+and finds no statistically significant monotonic relationship (Spearman rho = 0.046, two-sided
+p = 0.682, n=81; §4.4a). Stratified reliability diagrams, AURC, and the classical/recalibration
+comparators remain designed but unexecuted.
 
-### 3.2 Phase 2 — Interaction-Aware Rescoring (design only; not executed)
+### 3.2 Phase 2 — Interaction-Aware Rescoring (oracle gate and non-learned comparators B1/B3 executed; learned rescorer M1/M1-abl design only, not trained)
 
 Phase 2 is defined as a reranking problem, not a pose-generation problem: DiffDock-L already
 samples and confidence-ranks multiple candidate poses per complex, and the project's HPC runs
@@ -230,27 +312,41 @@ Phase 2 reranks within this existing candidate pool of 10 poses per complex, whi
 additional GPU inference for the evaluation benchmark and keeps the comparison to raw confidence
 on an identical candidate set.
 
-**Step 0 — oracle-headroom gate (mandatory, must run before any model is trained).** For every
-complex, we compute per-rank RMSD and per-rank PLIF recovery across all 10 candidates (this
-per-rank scoring itself has not yet been run; see §4). Three quantities are then compared, all on
-the same 122-complex denominator: (B0) the existing raw-confidence baseline — rank-1 top-1
-success, already measured at 14/122; (B2) an oracle upper bound — success if any of the 10
-candidates is within 2 Å, defining the best any reranking method could possibly achieve; and (B1)
-a random-choice lower sanity bound — expected success from picking one candidate at random. The
-pre-registered decision rule is: if oracle ≈ baseline (headroom below roughly 5 percentage
-points, i.e., fewer than about 6 complexes), rescoring is abandoned as a direction, because the
-correct pose is not present in the candidate pool for reranking to find — a limitation to report,
-not a rescoring failure, with the implied next step being wider pose sampling (larger N) rather
-than better reranking. If headroom clears that bar, rescoring proceeds. The same oracle
-computation is repeated for PLIF recovery: pooled PLIF recovery is itself low (15.47%, §4.4),
-and prior work has found RMSD-based correctness to carry no measured relationship to PLIF
-recovery in general (Errington et al., §2). This project's own measurement is consistent with
-that pattern: DiffDock-L's confidence score shows no statistically significant rank correlation
-with PLIF recovery (Spearman rho = -0.149, n=78, t(76) = -1.31; §4.4). On that basis a
-PLIF-recovery headroom exceeding the RMSD headroom is plausible, but the oracle computation
-itself has not been run, so the prediction remains a hypothesis, not a finding.
+**Step 0 — oracle-headroom gate (mandatory, run before any model is trained).** For every complex,
+we compute per-rank RMSD and per-rank PLIF recovery across all 10 candidates and compare three
+quantities, all on the same 122-complex denominator: (B0) the existing raw-confidence baseline —
+rank-1 top-1 success; (B2) an oracle upper bound — success if any of the 10 candidates clears the
+criterion, defining the best any reranking method could possibly achieve; and (B1) a random-choice
+lower sanity bound. The pre-registered decision rule is: if oracle ≈ baseline (headroom below
+roughly 5 percentage points, i.e., fewer than about 6 complexes), rescoring is abandoned as a
+direction for that criterion, because the correct pose is not present in the candidate pool for
+reranking to find — a limitation to report, not a rescoring failure. If headroom clears that bar,
+rescoring proceeds on that criterion. **This gate has now been run for both RMSD and PLIF, and the
+two criteria disagree.** RMSD: baseline 14/122 (11.48%) to oracle 22/122 (18.03%), headroom +6.56
+percentage points — clears the bar, **PASS**. PLIF (hybrid-recomputed, §4.4a): baseline 9.23%
+(47/509) to oracle 12.57% (64/509), headroom +3.34 percentage points — below the bar, **FAIL**.
+We read this pair of results as measuring two different failure modes, not as a contradiction.
+The RMSD headroom shows a *selection* problem: a better-RMSD pose already exists in the
+confidence-ranked candidate pool for a meaningful number of complexes, and DiffDock-L's confidence
+score is simply not choosing it — exactly the failure a learned rescorer is built to fix. The
+small PLIF headroom shows a *sampling* limitation instead: even an oracle that always chose the
+single best-PLIF-recovery candidate out of 10 barely improves over confidence's rank-1 choice,
+which means the candidate pool itself rarely contains a chemically much-better alternative to
+rerank toward. No reranking method — including the one proposed here — can recover interactions
+that were never sampled in the first place. Applying the decision rule per-criterion (an
+effective logical OR across the two gates, since either criterion clearing the bar is sufficient
+justification to proceed) means **Phase 2 proceeds**, justified by the RMSD-side headroom alone.
+We do not extend that justification to PLIF: this draft does not claim, and explicitly disclaims,
+that Interaction-Aware Rescoring will materially improve PLIF-based chemical correctness, since
+the ceiling for that improvement is measured here at +3.34 points regardless of how good the
+reranker is. The PLIF-derived features in M1 below (interaction-type counts, pharmacophore
+geometry) are accordingly justified only as auxiliary signal that may help RMSD-based selection —
+consistent with Errington et al.'s finding that RMSD-based correctness and PLIF recovery are not
+the same axis (§2) — not as a mechanism expected to close the small PLIF gap itself. Any
+PLIF-recovery improvement M1 shows is reported as a secondary, exploratory result, not a claimed
+contribution.
 
-**Comparators, conditional on passing Step 0.** All comparators rerank within the same fixed
+**Comparators (Step 0 passed, on RMSD-selection grounds).** All comparators rerank within the same fixed
 10-candidate pool and are evaluated on the identical 122-complex denominator used for Phase 1:
 B0 (raw confidence, rank-1 — the existing baseline), B1 (random-in-candidates), B2 (oracle,
 upper bound, not achievable by any method), B3 (classical rescoring of the 10 candidates by Vina
@@ -258,6 +354,27 @@ score, primary, and GNINA CNN score, secondary — a non-learned, non-PLIF contr
 proposed PLIF-aware learned rescorer), and M1-abl (an ablation of M1 with PLIF features removed,
 isolating whether any improvement comes specifically from the interaction signal or from the
 other features alone).
+
+**B1 and B3 have since been executed (2026-07-21); M1 and M1-abl remain unexecuted.** B1
+(random-in-candidates) is inherently probabilistic, so it is reported as an expected success rate
+rather than a single random draw: summing each complex's fraction of the 10 candidates with
+RMSD < 2 Å (`n_ranks_lt2A`/`n_ranks` in `rank_oracle_rmsd.csv`) over the 98 of 122 complexes with
+per-rank RMSD available gives an expected 13.5667/122 = 11.12%, on the same fixed 122-complex
+denominator — 0.36 percentage points below B0's observed 14/122 = 11.48%, a difference too small
+to read as meaningful given B1 is an expectation, not an integer observation. B3 (classical
+rescoring) used GNINA 1.3.3 (`--score_only --cnn_scoring none`) to score each of DiffDock-L's
+retained rank1–10 candidates against the same ESMFold-predicted protein structure used at
+inference, selecting the lowest-affinity pose per complex; all 111 complexes with usable
+candidates were processed with zero task failures (SLURM array job 12508307), of which 98 are
+RMSD-evaluable. B3 succeeds on 15/122 = 12.30% of complexes, one complex more than B0
+(+0.82 percentage points); a paired comparison shows both methods succeeding on the same 11
+complexes, with 3 B0-only and 4 B3-only successes — only 7 discordant pairs out of 122 — so this
+one-complex difference is not read as a clear improvement. B0, B1, and B3 therefore all fall
+within a narrow 11.12–12.30% band: neither a random reranking nor a classical affinity-based
+reranking of the same candidate pool moves the needle materially over raw confidence. This
+motivates M1 as a learned alternative, but it also sets the bar M1 must clear by a defensible
+margin — evaluated with the same paired statistics specified below — for Phase 2 to represent a
+genuine improvement rather than a restatement of this band.
 
 **Features.** Because inference-time candidates have no reference structure, the model cannot
 use PLIF *recovery* (which requires a native pose) as an input feature — only the absolute
@@ -273,7 +390,10 @@ across PDBBind and DockGen-E, enabling cross-complex training and evaluation.
 
 ProLIF fingerprint computation itself is not universally reliable: in Phase 1 it failed outright
 on 11 of 91 (~12%) RMSD-scored complexes (uint32 interaction-index overflow, missing van der
-Waals radii for uncommon metal centers, and one residue-identity mismatch; §4.4). The same
+Waals radii for uncommon metal centers, and one residue-identity mismatch; §4.4). This
+failure-rate figure comes from the same V1 pipeline now found to score against the wrong protein
+file (§4.4a); it is plausible but not confirmed that these outright computation crashes are
+independent of that bug and will recur unchanged after recomputation. The same
 failure modes are expected to recur when computing per-candidate PLIF features for Phase 2, since
 they arise from the same ProLIF call applied to structurally similar poses. Phase 2's feature
 extraction and the rescorer itself must therefore treat missing PLIF features as a first-class
@@ -285,9 +405,48 @@ regularization given expected small effective sample size) trained exclusively o
 in-distribution split, disjoint from all cross-docking evaluation data. Training requires running
 DiffDock-L inference on PDBBind to obtain the same candidate-pose and feature representation used
 at evaluation time — the only additional GPU cost Phase 2 introduces beyond the existing Phase 1
-runs, and one to be spent only after Step 0 passes. Supervision targets are RMSD < 2 Å (primary)
-and PLIF recovery (secondary). No component of DiffDock-L itself — score network or confidence
+runs, justified now that Step 0 has passed on RMSD-selection grounds. Supervision targets are
+RMSD < 2 Å (primary) and PLIF recovery (secondary, exploratory given the small PLIF-oracle
+headroom found in Step 0). No component of DiffDock-L itself — score network or confidence
 network — is retrained; only the reranking step is learned.
+
+**PDBBind subset data-source caveat.** For tractable inference cost, M1/M1-abl training uses a
+1,500-complex PDBBind subset drawn (seed=42, random sample) from the project's 16,379-ID PDBBind
+train list, rather than the full training set. While provisioning it, the data source cited in
+DiffDock's own GitHub README (Zenodo record 6408497, EquiBind-processed complexes) was confirmed
+deleted (Zenodo API, checked 2025-01-13) — a pre-existing defect in the upstream DiffDock
+repository, not introduced by this project. A substitute, Zenodo record 7014096 (different
+uploader, CC-BY-4.0, PDBBind v2020 refined+general set), was adopted; it uses the same complex IDs
+and the standard `<PDBID>_protein.pdb`/`_ligand.sdf`/`_pocket.pdb` file layout DiffDock/PoseBench
+expects, but was prepared with a different structure-preparation pipeline (Schrödinger Protein Prep
+Wizard) than the original (EquiBind's own processing), so protonation states and exact coordinates
+may differ slightly between the two sources. This has not been empirically checked (e.g., via a
+backbone-RMSD spot check between overlapping complex IDs) and is disclosed here as an open
+reproducibility caveat on M1/M1-abl's training data, to be resolved before those results are
+reported as findings. M1/M1-abl themselves remain unexecuted as of this draft.
+
+**Deterministic ligand/structure exclusions in the training subset.** GPU inference for M1/M1-abl
+over this 1,500-complex subset is now complete. DiffDock-L's inference path
+has no fixed random seed (no `--seed` argument and no `torch.manual_seed` call; the one fixed seed
+present in `conformer_matching.py` is used only by a training-time function, confirmed unused at
+inference), so most inference failures are stochastic and retriable. Three failure categories,
+however, reproduced identically across retries and were confirmed deterministic: 66 complexes whose
+ligand SDF cannot be parsed by RDKit at all; 31 complexes whose receptor contains a non-standard
+amino-acid residue (e.g., pyroglutamate/PCA), which produces a confidence-model input graph-size
+mismatch; and 4 complexes whose receptor exceeds the pipeline's size limit. These 101/1,500 (6.7%)
+complexes are excluded from M1/M1-abl's training data by decision, not by further retry. The 66
+RDKit-parsing failures fully overlap (66/66) with a previously characterized list of 236 PDBBind
+ligands with the same defect (consistent with PDBBind's own reported ~16% RDKit-parsing failure
+rate across the full dataset, arXiv:2411.01223), a list previously found to concentrate
+disproportionately in polysaccharide- and peptide-like ligands rather than being spread uniformly
+across chemotypes (§4.6(j)). A further 137 complexes failed non-deterministically on the first
+pass (SVD ill-conditioning during coordinate alignment, empty-tensor errors, and one
+PDB-ID-parsed-as-float bug now patched) and were retried: 81 succeeded on retry, and the remaining
+56 failed again in a pattern now confirmed deterministic (46 SVD ill-conditioned, 10 TorchScript
+empty-tensor) and are excluded from the training data alongside the 101 complexes above. Of the
+1,500 complexes, 1,343 (89.5%) yielded valid outputs, and as a sanity check on this training data
+(not a reported benchmark result), self-consistency against the PDBBind-subset ground truth was
+RMSD < 2 Å for 1,043/1,500 (69.5%, denominator fixed at 1,500).
 
 **Evaluation and statistics.** M1/M1-abl are compared against B0/B1/B2/B3 on the same 122-complex
 DockGen-E denominator and the same RMSD < 2 Å and PLIF-recovery correctness definitions used in
@@ -358,7 +517,7 @@ the execution-log breakdown as the correct account per this project's evidence-p
 (primary run logs over a summary README) and flag the README wording as incorrect, to be corrected
 in a follow-up pass rather than left as an open discrepancy.
 
-### 4.4 Results (measured, 2026-07-19)
+### 4.4 Results (measured, 2026-07-19; PLIF figures superseded and correlation recomputed 2026-07-21, see §4.4a)
 
 | Metric | Value | Denominator / basis |
 |---|---|---|
@@ -366,59 +525,156 @@ in a follow-up pass rather than left as an open discrepancy.
 | — reference figure | 15.38% | 91 RMSD-scored complexes only (not the primary denominator) |
 | — reference figure | 12.61% | 111 complexes with any usable inference output (not the primary denominator; rejected as a reporting basis, see §4.3) |
 | Expected calibration error (ECE) | **0.203** | 91 scored complexes; confidence = sigmoid(raw logit) as a P(RMSD < 2 Å) estimate, consistent with DiffDock's BCE-with-logits training objective; the 20 unscored complexes are excluded from this calculation rather than treated as incorrect |
-| PLIF interaction recovery (pooled) | **15.47%** (138/892 reference interactions) | pooled across 80 of the 91 scored complexes; per-complex mean 17.3%, median 0% — a heavily right-skewed distribution, most complexes recovering no reference interaction at all |
-| Confidence–PLIF recovery rank correlation | **Spearman rho = -0.149** (not significant) | n=78 (of the 80 PLIF-valid complexes, 2 lack a `confidence_rank1` value); t(76) = -1.31 vs. two-tailed critical value ≈1.99 at alpha=0.05, df=76 |
+| PLIF interaction recovery (pooled, rank-1 confidence baseline) — original computation **[INVALIDATED, §4.4a]** | ~~15.47%~~ (138/892) | pooled across 80 of the 91 scored complexes; **computed against the wrong (crystal, not ESMFold-predicted) protein file — see §4.4a** |
+| PLIF interaction recovery (pooled, rank-1 confidence baseline) — **hybrid recomputation, valid** | **47/509 = 9.23%** | matched n=82; per-complex mean 8.82%, median 0%; correct (ESMFold-predicted) protein file + non-redundant 9-type interaction list; one complex (`2wwc_1_CHT_2`) has 0 true interactions and is undefined (NaN), excluded from mean/median (n=81 non-null), contributes 0/0 to pooled figure; see §4.4a |
+| PLIF interaction recovery (pooled, rank1–10 oracle) — **hybrid recomputation, valid** | **64/509 = 12.57%** | same matched n=82 basis as above; per-complex mean 11.86%, median 0%; oracle headroom over the baseline row above is +3.34 points pooled (+3.05 points per-complex mean); see §4.4a and §4.5 |
+| Confidence–PLIF recovery rank correlation — original computation **[INVALIDATED, §4.4a]** | ~~Spearman rho = -0.149~~ (not significant) | n=78 (of the 80 PLIF-valid complexes in the original, now-superseded computation); computed against the wrong protein file — see §4.4a |
+| Confidence–PLIF recovery rank correlation — **hybrid recomputation, valid** | **Spearman rho = 0.046 (two-sided p = 0.682), not significant** | n=81 of the matched n=82 hybrid subset (one complex excluded, undefined recovery); independent average-rank Pearson calculation reproduced the same rho exactly; see §4.4a |
 
-The PLIF metric's own denominator is narrower than the RMSD/ECE metrics' 91: ProLIF fingerprint
-computation itself fails on 11 of the 91 RMSD-scored complexes (verified directly against
-`plif_recovery_results.csv`, 2026-07-20) — 7 from a numeric overflow in interaction-fingerprint
-indexing (`OverflowError: Python integer ... out of bounds for uint32`), 3 from missing van der
-Waals radii for metal-coordination atoms (Fe, Mo) in the interaction preset used, and 1 from a
-residue-identity mismatch between the predicted and reference structures. These 11 are excluded
-from the PLIF pooled/mean/median figures above (not imputed as zero recovery), leaving n=80 as the
-PLIF metric's actual complex-level denominator; the 892 reference-interaction count is the sum of
-per-complex reference-interaction counts over those same 80 complexes. This denominator distinction
-was not previously documented in this project's session logs and should be carried into any future
-reporting of this number.
+#### 4.4a Post-hoc invalidation of the original PLIF result, a valid hybrid replacement, and the recomputed correlation (2026-07-21)
 
-**Confidence-vs-PLIF-recovery relationship.** We test whether the confidence score tracks PLIF
-interaction recovery, the same relationship it is trained to have with RMSD. Restricting to the
-78 complexes with both a `confidence_rank1` value and a PLIF `recovery` value (2 of the 80
-PLIF-valid complexes lack a confidence score in the master table), the Spearman rank correlation
-between confidence and recovery is rho = -0.149. Using the standard t-approximation for the
-significance of a Spearman correlation, t(76) = rho·sqrt((n-2)/(1-rho²)) = -1.31, which falls
-short of the two-tailed critical value of approximately 1.99 at df=76, alpha=0.05: confidence and
-PLIF recovery show no statistically significant rank correlation. As an exploratory comparison
-outside the scope of this test, the rank correlation between confidence and binary RMSD < 2 Å
-success (n=91 scored complexes) is approximately +0.37, in the expected direction; this
-comparison was not itself subjected to a significance test and is reported only for context, not
-as a confirmed finding.
+The PLIF recovery rate and the confidence-vs-PLIF-recovery correlation originally reported for
+this manuscript were computed by `eval_scripts/compute_plif.py` (this project's "V1" PLIF
+pipeline) and were originally verified as *reproducible* from `plif_recovery_results.csv` and
+`master_eval_table_n122_with_plif.csv`. A subsequent code audit found that reproducibility is not
+the same as methodological validity: V1 scores each predicted ligand pose's interaction
+fingerprint against the **crystal protein file** (`protein_processed.pdb`) rather than the
+**ESMFold-predicted protein file DiffDock-L actually used at inference time**
+(`holo_aligned_predicted_protein.pdb`), confirmed by cross-checking V1's protein-file inputs
+against `diffdock_dockgen_inputs.csv`. Every complex's PLIF fingerprint was therefore computed in
+a structural context DiffDock-L never saw, which invalidates the resulting recovery numbers
+regardless of how carefully the downstream pooling, denominator, or correlation arithmetic was
+done.
 
-These are the only measured Phase 1 numbers in this draft. Stratified (pocket-similarity)
-reliability diagrams, the PDBBind in-distribution ECE anchor, AURC/risk–coverage, and the
-base-DiffDock/FlowDock/classical-scoring comparators specified in §3.1 have not been computed.
-Consequently, this draft can report that DiffDock-L's confidence score is, in absolute terms,
-poorly calibrated on this cross-docking benchmark, only weakly related to top-1 correctness, and
-carries no statistically significant rank relationship with PLIF interaction recovery — but it
-cannot yet report whether that miscalibration is *directional* (i.e., worse specifically
-under distribution shift relative to an in-distribution anchor, as prior rank-correlation and
-accuracy-degradation evidence would predict) or *stratified* (concentrated in low pocket-similarity
-complexes), because the comparison points needed to establish either claim have not been measured
-in this project. We flag both as open, not as findings.
+**Invalidated.** Pooled PLIF interaction recovery 15.47% (138/892, computed over 80 of the 91
+RMSD-scored complexes; per-complex mean 17.3%, median 0%), and the confidence-vs-PLIF-recovery
+Spearman rank correlation (rho = -0.149, n=78, t(76) = -1.31, not significant). Neither number is
+cited as a finding anywhere in this draft; both are retained only as a transparent record of what
+was measured and later retracted.
+
+For denominator bookkeeping only (not a validity claim about the retracted V1 numbers): ProLIF
+fingerprint computation itself failed outright on 11 of the 91 RMSD-scored complexes regardless of
+protein file (7 from a numeric overflow in interaction-fingerprint indexing, `OverflowError:
+Python integer ... out of bounds for uint32`; 3 from missing van der Waals radii for
+metal-coordination atoms Fe/Mo; 1 from a residue-identity mismatch), leaving 80 as the denominator
+for the retracted V1 pooled figure and 78 for the retracted V1 correlation (2 of the 80 lack a
+`confidence_rank1` value, cause undiagnosed).
+
+**Not affected.** Top-1 RMSD < 2 Å success rate (14/122 = 11.48%) and ECE (0.203) are computed by
+a separate pipeline (`build_master_table.py`, `compute_ece.py`) that does not involve the
+ground-truth protein file used for PLIF scoring and is untouched by this bug. Similarly, an
+exploratory (not significance-tested) rank correlation between confidence and binary RMSD < 2 Å
+success (n=91 scored complexes) of approximately +0.37, in the expected direction, does not depend
+on PLIF or the protein-file bug and is reported only for context, not as a confirmed finding.
+
+**Hybrid recomputation (complete).** A second, independently written pipeline ("V2",
+`dockgen_pilot_eval/`) uses the correct protein file but a broader ProLIF interaction-type list
+(`interactions="all"`, 15 types, which double-counts π-stacking as both EdgeToFace and
+FaceToFace) and reported pooled recovery 7.47% (86/1151, matched n=82) — never adopted as a
+replacement for 15.47%, since its interaction-list redundancy is itself a methodological problem.
+The required combination — V2's correct protein-file handling with V1's non-redundant 9-type
+interaction list — has now been run over the matched n=82 subset. Results:
+
+- **Baseline (rank-1, confidence-selected pose):** pooled recovery 47/509 = **9.23%**;
+  per-complex mean 8.82%, median 0%. Source: `hybrid_plif_baseline_matched82.csv`, script
+  `hybrid_plif_baseline.py`.
+- **Oracle (best of rank1–10 candidates per complex):** pooled recovery 64/509 = **12.57%**;
+  per-complex mean 11.86%, median 0%. Source: `hybrid_plif_oracle_matched82.csv`, script
+  `hybrid_plif_oracle.py`.
+- **Headroom:** +3.34 percentage points pooled, +3.05 points per-complex mean (see §4.5 for the
+  gate interpretation alongside the RMSD-side headroom).
+- **Denominator note:** one complex (`2wwc_1_CHT_2`) has zero true interactions under this 9-type
+  list, making its per-complex recovery undefined (NaN); it contributes 0/0 to the pooled figures
+  (no effect on the pooled percentages) and is excluded from the per-complex mean/median, which are
+  therefore computed over n=81 non-null complexes.
+- Both files live under `~/docking_project/PoseBench/forks/DiffDock/results/dockgen_pilot_eval/`
+  on the project's HPC environment.
+
+These two numbers (9.23% baseline, 12.57% oracle) are this manuscript's reported PLIF recovery
+figures, superseding the retracted 15.47%.
+
+**Confidence-vs-PLIF-recovery correlation (complete).** The correlation itself — a distinct
+computation from the recovery-rate recomputation above — has also now been run against these
+hybrid values. All 82 hybrid baseline rows matched a `confidence_rank1` value from
+`master_eval_table_n122_with_plif.csv`; the one complex with zero true interactions and therefore
+undefined recovery (`2wwc_1_CHT_2`) was excluded, leaving n=81. Spearman rho = 0.046167845505,
+two-sided p = 0.682340974058; an independent average-rank Pearson calculation reproduced the same
+rho exactly. **The retracted rho = -0.149 (computed from the invalidated V1 data) remains
+INVALIDATED and was not reused in any part of this computation.** As with that earlier result, we
+read this only as a limited, non-causal statement: no statistically significant monotonic
+relationship between DiffDock-L's confidence score and this corrected PLIF-recovery rate was
+observed in this sample. Source: `eval_scripts/correlate_hybrid_plif.py`,
+`results/dockgen_pilot_eval/hybrid_plif_confidence_spearman.json`.
+
+The RMSD-based success rate and ECE, the hybrid-recomputed PLIF recovery rate and its oracle
+headroom, and the confidence-vs-PLIF-recovery correlation (rho = 0.046, p = 0.682, n=81, not
+significant) are the measured Phase 1 numbers this draft can report as findings. Stratified
+(pocket-similarity) reliability diagrams, the PDBBind in-distribution ECE anchor, AURC/risk–coverage,
+and the base-DiffDock/FlowDock/classical-scoring comparators specified in §3.1 have not been
+computed. Consequently, this draft can report that DiffDock-L's confidence score is, in absolute
+terms, poorly calibrated on this cross-docking benchmark, only weakly related to top-1 correctness,
+paired with a candidate pool whose chemical (PLIF) correctness is low and has only modest headroom
+to improve by reranking, and shows no measured monotonic relationship to that chemical correctness
+— but it cannot yet report whether the observed miscalibration is *directional* (i.e., worse
+specifically under distribution shift relative to an in-distribution anchor, as prior
+rank-correlation and accuracy-degradation evidence would predict) or *stratified* (concentrated in
+low pocket-similarity complexes), because the comparison points
+needed to establish either claim have not been measured in this project. We flag both as open, not
+as findings.
 
 An earlier 65-complex pilot on an overlapping but not identical set reported success rate 18.5%,
 ECE 0.53, and PLIF recovery 6.0%. Its computation scripts were not preserved, so this draft treats
 those figures as unverifiable background only — not as a comparison point — and adopts the n=122
 result above as the project's sole reported baseline.
 
-### 4.5 Phase 2 status
+### 4.5 Phase 2 status — oracle-headroom gate and non-learned baselines (B1, B3) executed; learned rescorer not yet trained
 
-No Phase 2 number has been computed. The oracle-headroom gate (§3.2, Step 0) — the first required
-step before any rescoring model is trained — has not been run: per-rank (rank 2 through 10) RMSD
-and PLIF recovery have not yet been computed for the candidate pool, so neither the oracle upper
-bound nor the resulting headroom is known. Until that gate is evaluated, it is not established
-that rescoring can improve on the 14/122 baseline at all; we treat this as the single most
-consequential open question for the project's next step, ahead of building any model.
+The oracle-headroom gate (§3.2, Step 0) — the first required step before any rescoring model is
+trained — has now been run over per-rank RMSD and per-rank PLIF recovery for the retained
+rank1–10 candidate pool, on the same 122-complex denominator as Phase 1.
+
+| Gate | Baseline (rank-1, confidence-selected) | Oracle (best of rank1–10) | Headroom | Result vs. +5pp bar |
+|---|---:|---:|---:|---|
+| RMSD < 2 Å | 14/122 = 11.48% | 22/122 = 18.03% | **+6.56 points** | **PASS** |
+| PLIF recovery (pooled, hybrid-recomputed, §4.4a) | 47/509 = 9.23% | 64/509 = 12.57% | **+3.34 points** | **FAIL** |
+
+The two gates measure different things and disagree. RMSD headroom of +6.56 points means a
+better-RMSD pose already exists, unchosen, in the confidence-ranked candidate pool for a
+non-trivial number of complexes — a *selection* problem that a learned rescorer is directly built
+to address. PLIF headroom of +3.34 points means that even an oracle that always picked the
+single most chemically-correct candidate out of 10 barely improves over confidence's own choice —
+a *sampling* limitation: the candidate pool itself rarely contains a much better chemical match to
+select toward, so no reranking method, however good at selection, can recover much there.
+
+Applying the pre-registered decision rule per criterion, and treating either criterion clearing
+the bar as sufficient to proceed (an effective logical OR across the two gates), **Phase 2
+proceeds**, justified by the RMSD-side headroom alone. This draft does not extend that
+justification to PLIF: no claim is made, and none should be inferred, that Interaction-Aware
+Rescoring will materially improve PLIF-based chemical correctness — the measured ceiling for that
+improvement is +3.34 points regardless of rescorer quality. PLIF-derived features in the proposed
+M1 model (§3.2) are correspondingly framed as auxiliary signal for improving RMSD-based selection,
+and any PLIF-recovery gain M1 shows in evaluation is to be reported as a secondary, exploratory
+result rather than a headline contribution.
+
+**Non-learned comparators B1 and B3 (executed, 2026-07-21).** Beyond the oracle gate (B2) above,
+the two non-learned rerankers specified in §3.2 have also been run on the same fixed 122-complex
+denominator, on the same retained rank1–10 candidate pool:
+
+| Comparator | Success rate | vs. B0 (14/122 = 11.48%) | Basis |
+|---|---:|---:|---|
+| B0 — raw confidence (rank-1) | 14/122 = 11.48% | — | existing baseline |
+| B1 — random-in-candidates (expected value) | 13.5667/122 = 11.12% | -0.36 points | expected value from per-rank RMSD, 98/122 complexes evaluable; not an integer observation |
+| B3 — GNINA/Vina affinity rerank | 15/122 = 12.30% | +0.82 points (+1 complex) | 111/122 processed (SLURM array 12508307, 0 failures), 98/122 RMSD-evaluable; paired vs. B0: both-success 11, B0-only 3, B3-only 4 |
+
+B0, B1, and B3 all fall within an 11.12–12.30% band on this benchmark. B3's one-complex gain over
+B0 is not read as a clear improvement, given only 7 discordant pairs out of 122. This narrow spread
+across a random baseline, the raw confidence baseline, and a classical affinity-based reranker
+indicates that neither randomness nor classical scoring meaningfully exploits the RMSD-side
+headroom identified by the oracle gate above. It motivates M1 as a learned alternative, but it also
+sets a modest bar (~12%) that M1 must clear by a defensible margin for Phase 2 to represent more
+than a restatement of this band. M1 and M1-abl remain unexecuted; the single most consequential
+open step, now that the gate and non-learned comparators are in hand, is the actual training and
+evaluation of M1/M1-abl against B0/B1/B2/B3 as specified in §3.2.
 
 ### 4.6 Limitations
 
@@ -429,9 +685,10 @@ DockGen-E complexes (16%) cannot be RMSD-scored under the current pipeline becau
 ligand chemistry (peptide-like ligands, repeated glycine, metal ions) — a structural limitation of
 the DiffDock-L/PoseBench pipeline as deployed here, not resolved without code-level changes, and a
 source of missing data rather than measured failure for those complexes' correctness. (c) The
-per-complex PLIF-recovery distribution is heavily skewed (median 0%), which will need to be
-accounted for in how Phase 2 defines its PLIF-recovery training target rather than treated as a
-simple regression or balanced-classification signal. (d) DockGen-E (n=122, 91 scored) gives low
+per-complex PLIF-recovery distribution is heavily skewed (median 0% in both the now-invalidated V1
+computation and the valid hybrid recomputation, §4.4a, for baseline and oracle alike); Phase 2 will
+need to account for this in how it defines a PLIF-recovery training target rather than treating it
+as a simple regression or balanced-classification signal. (d) DockGen-E (n=122, 91 scored) gives low
 statistical power; any Phase 2 comparison will need the PoseX-CD extension (n=1,312) before a
 significance claim is defensible, per the pre-registered plan in §3.2. (e) Comparator confidence
 scores (DiffDock-L's learned probability vs. Vina's empirical scoring function vs. a trained
@@ -440,33 +697,86 @@ multiple comparators, it must also report AURC/risk–coverage as a semantics-fr
 per the design in §3.1. (f) The documentation discrepancy noted in §4.3 regarding the cause of
 the 11 runtime failures has been resolved in favor of the execution-log breakdown (SVD
 ill-conditioning ×7, RDKit/exception-handling ×4); the project's own public README still carries
-the outdated single-cause wording and needs a corrective update outside this manuscript. (g) The
-PLIF pooled/mean/median recovery figures in §4.4 are computed over 80 of the 91 RMSD-scored
-complexes, not all 91: ProLIF fingerprint computation itself fails on the remaining 11 (7
-interaction-index overflow, 3 missing metal van der Waals radii, 1 residue-identity mismatch).
-These 11 are excluded from the PLIF figures, not imputed as zero recovery, and the same failure
-modes are a coverage risk for Phase 2 feature extraction (§3.2). (h) The confidence-vs-PLIF-
-recovery correlation (§4.4) is computed on n=78, not the full 80 PLIF-valid complexes, because 2
-complexes with a valid PLIF recovery value lack a `confidence_rank1` value in the master
-evaluation table; the cause of that gap has not been separately diagnosed. With only 78 paired
-observations, the null result (rho = -0.149, not significant) is likely underpowered to rule out
-anything smaller than a moderate correlation; it should be read as "no significant correlation
-detected at this sample size," not as strong evidence that the true relationship is zero.
+the outdated single-cause wording and needs a corrective update outside this manuscript. (g) **(A
+historical denominator note about the now-retracted V1 PLIF computation, §4.4a; kept for the
+record, not for reuse.)** The retracted V1 pooled/mean/median recovery figures were computed over
+80 of the 91 RMSD-scored complexes, not all 91, because ProLIF fingerprint computation itself
+failed outright on the remaining 11 (7 interaction-index overflow, 3 missing metal van der Waals
+radii, 1 residue-identity mismatch). The valid hybrid recomputation (§4.4a) uses a different
+denominator (matched n=82, one further complex with an undefined/NaN recovery value) inherited from
+the V2 pipeline's matching procedure, not this 80/91 breakdown; the two denominators should not be
+conflated. The same fingerprint-computation failure modes remain a coverage risk for Phase 2
+per-candidate feature extraction (§3.2). (h) **The confidence-vs-PLIF-recovery correlation has now
+been recomputed against the valid hybrid PLIF values (§4.4a).** The only earlier correlation
+computed (n=78, rho = -0.149) used the now-retracted V1 PLIF pipeline (scored against the crystal,
+not ESMFold-predicted, protein file) and remains uncited as a finding. The hybrid-value
+recomputation (n=81, Spearman rho = 0.046167845505, two-sided p = 0.682340974058, independently
+reproduced via an average-rank Pearson calculation) finds no statistically significant monotonic
+relationship — a distinct analysis from the recovery-rate recomputation itself, and one that should
+be read only as "no clear rank relationship observed in this sample," not as evidence that
+confidence and PLIF recovery are causally related or unrelated. (i) **The original PLIF recovery
+measurement was invalidated by a ground-truth protein-file bug** (scored the predicted ligand pose
+against the crystal protein file rather than the ESMFold-predicted protein file DiffDock-L actually
+used); a hybrid recomputation against the correct protein file has since produced valid replacement
+figures (9.23% baseline, 12.57% oracle, §4.4a). The confidence-vs-PLIF-recovery correlation, the one
+other PLIF-derived quantity from the original computation, has also now been recomputed against the
+corrected data (rho = 0.046, n=81, not significant; see (h) above). (j) **PDBBind training-subset
+(M1/M1-abl) exclusion bias.** Of the 1,500-complex PDBBind subset drawn for M1/M1-abl training
+(§3.2), 101 complexes (6.7%) were excluded from the final training data because of failures
+confirmed deterministic across retries, not random dropout: 66 RDKit ligand-parsing failures (fully
+overlapping a previously identified 236-complex list disproportionately containing polysaccharide-
+and peptide-like ligands, consistent with PDBBind's own known ~16% RDKit defect rate,
+arXiv:2411.01223), 31 non-standard-residue receptor/confidence-model graph-size mismatches, and 4
+receptor-size-limit skips (§3.2). The direction of this bias, not its magnitude, is the operative
+concern: M1 has systematically fewer training examples on large, peptide-like ligands than a
+uniformly random 6.7% reduction would imply, and any accuracy comparison involving this chemotype
+should be read with that caveat. A further 137 complexes failed non-deterministically and were being
+retried as of this draft; their disposition is not yet known. (k) **PDBBind data-source
+substitution.** M1/M1-abl's training structures come from a substitute Zenodo record (7014096)
+rather than the source cited in DiffDock's own README (record 6408497, confirmed deleted; §3.2),
+because the original is no longer available. The substitute was prepared with a different
+structure-preparation pipeline (Schrödinger Protein Prep Wizard vs. the original EquiBind
+processing), so protonation states and coordinates may differ slightly from what DiffDock-L's
+original authors used; this has not been empirically checked (e.g., via a backbone-RMSD spot check
+between overlapping complex IDs) and is disclosed as an open reproducibility caveat, not a resolved
+non-issue.
 
 ---
 
 ## 5. Conclusion (interim)
 
-This draft reports a measured diagnosis and a specified but unexecuted correction. On the
-DockGen-E cross-docking benchmark, DiffDock-L's top-1 pose is correct (RMSD < 2 Å) for 14 of 122
-complexes (11.48%), its confidence score has ECE 0.203 on the 91 complexes where correctness could
-be scored, and its top-1 pose recovers only 15.47% of reference protein–ligand interactions
-pooled across complexes, with a per-complex median of 0%. Whether an Interaction-Aware Rescoring
-model can improve on this — and whether any improvement traces specifically to the PLIF features
-rather than to cheaper signals such as ensemble consistency — is not yet known and is the explicit
-subject of the pre-registered, not-yet-executed protocol in §3.2. The single next measurement
-that determines whether Phase 2 is worth building at all is the oracle-headroom gate (§3.2,
-§4.5): whether the correct pose exists anywhere in DiffDock-L's already-sampled candidate pool.
+This draft reports a measured diagnosis, a measured oracle-headroom gate, and a specified but
+not-yet-trained correction. On the DockGen-E cross-docking benchmark, DiffDock-L's top-1 pose is
+correct (RMSD < 2 Å) for 14 of 122 complexes (11.48%), and its confidence score has ECE 0.203 on
+the 91 complexes where correctness could be scored. An earlier reported PLIF recovery figure
+(15.47%, pooled) **is INVALIDATED (§4.4a)**: it was computed against the wrong (crystal, not
+ESMFold-predicted) protein file. A hybrid recomputation against the correct protein file now gives
+a valid figure — the top-1 pose recovers 9.23% of reference protein–ligand interactions pooled
+across the matched n=82 subset (47/509), against a rank1–10 oracle upper bound of 12.57% (64/509).
+A recomputed correlation between confidence and this corrected recovery rate finds no statistically
+significant monotonic relationship (Spearman rho = 0.046, two-sided p = 0.682, n=81) — a limited,
+non-causal null result, not evidence that confidence and chemical correctness are unrelated in any
+deeper sense.
+
+The oracle-headroom gate (§3.2 Step 0, §4.5) that determines whether Phase 2 is worth building has
+now been run, and it delivers two different verdicts depending on which correctness criterion is
+used. On RMSD, headroom is substantial (14/122 to 22/122, +6.56 points): a better-RMSD pose often
+already sits, unchosen, in DiffDock-L's own candidate pool, which is a selection failure a learned
+rescorer can plausibly fix. On PLIF recovery, headroom is small (9.23% to 12.57%, +3.34 points):
+even a perfect oracle over the same 10 candidates recovers little more chemical correctness than
+confidence already does, which is a sampling limitation no reranking method can fix. We take the
+RMSD-side result alone as sufficient grounds to proceed to Phase 2, and we are explicit that this
+draft does not claim, and will not claim without new evidence, that Interaction-Aware Rescoring
+materially improves PLIF-based chemical correctness — any such improvement the trained model shows
+would be a secondary, exploratory finding, not the paper's central contribution. Two non-learned
+rerankers run on the same candidate pool — B1 (random-in-candidates, expected 11.12%) and B3
+(GNINA/Vina affinity reranking, 12.30%) — both land within about a percentage point of confidence's
+own 11.48% (§3.2, §4.5), indicating that neither randomness nor classical scoring exploits the
+RMSD-side headroom on its own; this sets a modest bar the proposed learned rescorer must clear.
+Whether the proposed rescoring model in fact improves on the RMSD-based baseline by a margin beyond
+this band — and whether any improvement traces specifically to the PLIF-derived features rather
+than to cheaper signals such as ensemble consistency — is not yet known and remains the explicit
+subject of the pre-registered, not-yet-executed training and evaluation protocol in §3.2.
 
 ---
 
@@ -483,14 +793,33 @@ corrected outside this manuscript. Result files, including the main evaluation t
 (`master_eval_table_n122_with_plif.csv`), ECE/reliability-diagram data (`ece_reliability_bins_n91.csv`,
 `reliability_diagram_n91.png`), and PLIF recovery results (`plif_recovery_results.csv`), are under
 `results/dockgen_pilot/`, with reproduction scripts under `results/dockgen_pilot/eval_scripts/`.
+**`plif_recovery_results.csv` and the PLIF columns of `master_eval_table_n122_with_plif.csv` are
+invalidated (§4.4a):** `compute_plif.py` scores the predicted ligand pose against the crystal
+protein file rather than the ESMFold-predicted protein file DiffDock-L actually used at inference
+time. These files are retained in the repository as a record, not as a source of valid PLIF
+numbers. **The valid replacement PLIF figures reported in §4.4/§4.4a (9.23% baseline, 12.57%
+oracle) come from a separate hybrid pipeline**: `hybrid_plif_baseline_matched82.csv` and
+`hybrid_plif_oracle_matched82.csv` (scripts `hybrid_plif_baseline.py`, `hybrid_plif_oracle.py`),
+under `results/dockgen_pilot_eval/` — not yet cross-referenced against the public repository's
+directory layout at the time of this draft; confirm the path before final submission. **The
+confidence-vs-PLIF-recovery correlation against these hybrid values has since been recomputed
+(§4.4a, §4.6(h)):** `results/dockgen_pilot_eval/hybrid_plif_confidence_spearman.json`, script
+`eval_scripts/correlate_hybrid_plif.py`.
 Reproducing these numbers from scratch currently requires manual work beyond cloning the
 repository: `eval_scripts/*.py` hardcode absolute paths from the project's HPC compute environment
 and will not run unmodified elsewhere, and two of the three scripts require input files not yet
 tracked in the repository — `build_master_table.py` needs `diffdock_dockgen_inputs.csv`, and
 `compute_plif.py` needs `data/dockgen_set/`. The tracked CSV outputs in `results/dockgen_pilot/`
 can be used directly without rerunning these scripts. DockGen-E is redistributed by PoseBench
-(BioinfoMachineLearning/PoseBench) and originates from Corso et al. (arXiv:2402.18396). No Phase 2
-code or trained model exists yet; this section will be updated once Phase 2 is executed.
+(BioinfoMachineLearning/PoseBench) and originates from Corso et al. (arXiv:2402.18396). The
+oracle-headroom gate and the two non-learned comparators B1 and B3 (§4.5) have been executed —
+result files `random_baseline_rmsd.json` and `gnina_b3_selected.csv`/`gnina_b3_summary.json` under
+`results/dockgen_pilot_eval/` — but no Phase 2 learned rescoring model (M1/M1-abl) code or trained
+artifact exists yet; this section will be updated once that model is trained and evaluated. M1's
+training data (a 1,500-complex PDBBind subset) is being provisioned from a substitute Zenodo source
+(record 7014096) because the source cited in DiffDock's own README (record 6408497) was found
+deleted; this substitution, and its unverified structure-preparation difference, are disclosed in
+§3.2 and must be carried into any future release of the M1 training data itself.
 
 ---
 
