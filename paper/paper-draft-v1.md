@@ -95,8 +95,9 @@ an oracle headroom of +3.34 percentage points. A recomputed Spearman correlation
 confidence and this corrected PLIF-recovery rate finds no statistically significant monotonic
 relationship (rho = 0.046, two-sided p = 0.682, n=81); the previous, now-invalidated rho = -0.149
 was not reused. Taken together, the valid results show low top-1 RMSD success, poor calibration,
-and low PLIF recovery with only modest room to improve it by reranking alone, and no measured
-relationship between confidence and this chemical-correctness signal. An oracle-headroom analysis of
+and low PLIF recovery with only modest room to improve it by reranking alone, and no statistically
+significant relationship (at this sample size) between confidence and this chemical-correctness
+signal. An oracle-headroom analysis of
 DiffDock-L's already-sampled candidate pool helps explain why the two correctness criteria give
 such different pictures. RMSD headroom is substantial (14/122 to 22/122, +6.56 percentage points):
 a better-RMSD pose is often already sitting in the candidate pool, and confidence simply is not
@@ -203,13 +204,12 @@ docking as generative sampling over translation, rotation, and torsion, pairing 
 equivariant score network with a separately trained confidence model that predicts whether a
 pose meets the 2 Å RMSD criterion. On in-distribution PDBBind time-splits this confidence score
 attains Spearman correlation 0.68 with RMSD and lifts selective accuracy from 38% to 83% under
-aggressive abstention. DiffDock-L subsequently improved generalization through confidence-bootstrapping, reported in
-its source paper (Corso et al., arXiv:2402.18396, which also introduced DockGen) to raise DockGen
-accuracy from roughly 7% to 23%. Unlike the other claims in this section, this specific figure was
-not independently ingested into this project's literature-review corpus (`wiki/papers/`) — the
-2402.18396 PDF is cited elsewhere in this draft only as the origin of the DockGen dataset, not as
-a fully reviewed source — so it carries a lower evidence tier than neighboring claims and should
-be re-checked against the source paper before this draft is finalized.
+aggressive abstention. The same source paper (Corso et al., arXiv:2402.18396, which also introduced
+DockGen) shows that Confidence Bootstrapping applied to **DiffDock-S** (not DiffDock-L) raises
+DockGen-clusters accuracy from **9.8% to 24.0%** (Table 1, Fig. 4-D). This claim was independently
+verified against the arXiv:2402.18396 source PDF (PMC10925391) on 2026-07-22; the earlier draft
+had misattributed the improved model as DiffDock-L and misreported the figures as roughly 7% to
+23%, both now corrected.
 DiffDock-PP (Ketata et al., ICLR 2023 workshop, arXiv:2304.03889) extends the same
 top-1-plus-confidence paradigm to protein–protein docking and reports a large gap between
 oracle-selected and confidence-selected poses. In every case we are aware of, the confidence
@@ -227,7 +227,7 @@ accuracy collapsing to 4.8% on DockGen-E under its own evaluation protocol. A co
 on SARS-CoV-2 and MERS-CoV main proteases (Liu et al., J. Chem. Inf. Model. 2026) finds vanilla
 DiffDock confidence-selected top-1 accuracy of 12.3%, below classical Glide, on novel viral
 protease targets. A large-scale LIT-PCBA virtual-screening evaluation (Abo-Dahab et al., UCSF
-capstone 2026) finds DiffDock confidence performing at or below classical AutoDock in a
+capstone 2026, arXiv:2605.01681) finds DiffDock confidence performing at or below classical AutoDock in a
 single-pose screening setting. PoseBench (Morehead et al., Nature Machine Intelligence 8, 32–41,
 2026) ties these degradations to a mechanism, reporting a strong negative correlation between
 deep-learning accuracy and training-set similarity — consistent with memorization — that is
@@ -253,6 +253,18 @@ trained reranking mechanism for diffusion-docking poses; existing pose-rescoring
 CNN scoring (Buccheri & Rescifina, Molecules 2025), MC-GNNAS-Dock's multi-criteria selection
 (Cao et al., arXiv:2509.26377) — reranks with classical or graph-based scoring functions, not by
 augmenting a diffusion model's own learned confidence output with chemically orthogonal features.
+The closest adjacent precedent we found is DiffDock-NMDN (Xia, Gu & Zhang, *J. Chem. Inf. Model.*
+65(3), 1101–1114, 2025), which does rerank DiffDock's sampled poses with a separately trained
+model, but that model (NMDN) learns a continuous protein-residue–ligand-atom distance-likelihood
+potential via a mixture density network over ESM-2/sPhysNet embeddings — purely geometric
+supervision, with no discrete interaction-type label (hydrogen bond, hydrophobic contact,
+π-stacking) or pharmacophore directional constraint anywhere in its inputs or loss. This is
+architecturally distinct from the interaction-fingerprint/pharmacophore features this work
+proposes to feed back into reranking, and an independent large-scale evaluation of this exact
+pipeline (Abo-Dahab et al., arXiv:2605.01681) reports that DiffDock-NMDN underperforms the
+unscored DiffDock baseline on LIT-PCBA (median EF1% 0.67 vs. 1.17), which we read as evidence
+that a purely distance-based rescorer does not obviously substitute for the discrete interaction
+signal this work targets.
 
 **Positioning.** The confidence-related evidence in this literature splits into three parts that
 do not overlap: in-distribution ranking evidence for DiffDock-family confidence, out-of-
@@ -425,28 +437,32 @@ backbone-RMSD spot check between overlapping complex IDs) and is disclosed here 
 reproducibility caveat on M1/M1-abl's training data, to be resolved before those results are
 reported as findings. M1/M1-abl themselves remain unexecuted as of this draft.
 
-**Deterministic ligand/structure exclusions in the training subset.** GPU inference for M1/M1-abl
-over this 1,500-complex subset is now complete. DiffDock-L's inference path
-has no fixed random seed (no `--seed` argument and no `torch.manual_seed` call; the one fixed seed
-present in `conformer_matching.py` is used only by a training-time function, confirmed unused at
-inference), so most inference failures are stochastic and retriable. Three failure categories,
-however, reproduced identically across retries and were confirmed deterministic: 66 complexes whose
-ligand SDF cannot be parsed by RDKit at all; 31 complexes whose receptor contains a non-standard
-amino-acid residue (e.g., pyroglutamate/PCA), which produces a confidence-model input graph-size
-mismatch; and 4 complexes whose receptor exceeds the pipeline's size limit. These 101/1,500 (6.7%)
-complexes are excluded from M1/M1-abl's training data by decision, not by further retry. The 66
-RDKit-parsing failures fully overlap (66/66) with a previously characterized list of 236 PDBBind
-ligands with the same defect (consistent with PDBBind's own reported ~16% RDKit-parsing failure
-rate across the full dataset, arXiv:2411.01223), a list previously found to concentrate
+**Failure exclusions in the training subset.** GPU inference for M1/M1-abl over this 1,500-complex
+subset is now complete. DiffDock-L's inference path has no fixed random seed (no `--seed` argument
+and no `torch.manual_seed` call; the one fixed seed present in `conformer_matching.py` is used only
+by a training-time function, confirmed unused at inference), so many inference failures are
+stochastic and were retried across multiple rounds before this final accounting. After all
+retries, code-level fixes (an OpenBabel fallback for RDKit-unparsable ligands, a
+conformer-embedding fallback for chirality-sensitive ligands, and a backbone-atom-selection fix for
+non-standard-residue receptors), and a full merge-and-recount of all output directories,
+**1,440/1,500 (96.0%) complexes yielded valid outputs**. The remaining 60 (4.0%) were
+re-classified by reading each complex's individual log section directly (a whole-log keyword
+search was found to misclassify some cases and was discarded as unreliable): 37
+SVD-ill-conditioned (non-convergent Kabsch alignment), 12 RDKit ligand-parsing failures that
+resisted the OpenBabel fallback, 6 TorchScript `radius.py` `RuntimeError` failures (confirmed
+fatal, not a benign warning, by inspecting each complex's log for an explicit `Failed for 1
+complexes` line), 4 receptor-too-large skips (pipeline's 3,000-residue threshold), and 1 CSV-field
+`AttributeError` (a complex-name field parsed as `float` rather than `str`, newly identified this
+pass) — 37+12+4+6+1=60, and 1,440+60=1,500. These 60 complexes are excluded from M1/M1-abl's
+training data. The RDKit-parsing failures overlap with a previously characterized list of 236
+PDBBind ligands with the same defect (consistent with PDBBind's own reported ~16% RDKit-parsing
+failure rate across the full dataset, arXiv:2411.01223), a list previously found to concentrate
 disproportionately in polysaccharide- and peptide-like ligands rather than being spread uniformly
-across chemotypes (§4.6(j)). A further 137 complexes failed non-deterministically on the first
-pass (SVD ill-conditioning during coordinate alignment, empty-tensor errors, and one
-PDB-ID-parsed-as-float bug now patched) and were retried: 81 succeeded on retry, and the remaining
-56 failed again in a pattern now confirmed deterministic (46 SVD ill-conditioned, 10 TorchScript
-empty-tensor) and are excluded from the training data alongside the 101 complexes above. Of the
-1,500 complexes, 1,343 (89.5%) yielded valid outputs, and as a sanity check on this training data
-(not a reported benchmark result), self-consistency against the PDBBind-subset ground truth was
-RMSD < 2 Å for 1,043/1,500 (69.5%, denominator fixed at 1,500).
+across chemotypes (§4.6(j)). **RMSD self-consistency against the PDBBind-subset ground truth has
+not yet been recomputed for this final 1,440-complex sample**; the previously reported 1,043/1,500
+(69.5%) figure was computed against the earlier, superseded 1,343-complex accounting and is stale
+— it is not restated here, and should not be rescaled by proportion to approximate a
+1,440-complex figure; a fresh computation is required before this sanity check can be reported.
 
 **Evaluation and statistics.** M1/M1-abl are compared against B0/B1/B2/B3 on the same 122-complex
 DockGen-E denominator and the same RMSD < 2 Å and PLIF-recovery correctness definitions used in
@@ -722,16 +738,18 @@ figures (9.23% baseline, 12.57% oracle, §4.4a). The confidence-vs-PLIF-recovery
 other PLIF-derived quantity from the original computation, has also now been recomputed against the
 corrected data (rho = 0.046, n=81, not significant; see (h) above). (j) **PDBBind training-subset
 (M1/M1-abl) exclusion bias.** Of the 1,500-complex PDBBind subset drawn for M1/M1-abl training
-(§3.2), 101 complexes (6.7%) were excluded from the final training data because of failures
-confirmed deterministic across retries, not random dropout: 66 RDKit ligand-parsing failures (fully
-overlapping a previously identified 236-complex list disproportionately containing polysaccharide-
-and peptide-like ligands, consistent with PDBBind's own known ~16% RDKit defect rate,
-arXiv:2411.01223), 31 non-standard-residue receptor/confidence-model graph-size mismatches, and 4
-receptor-size-limit skips (§3.2). The direction of this bias, not its magnitude, is the operative
-concern: M1 has systematically fewer training examples on large, peptide-like ligands than a
-uniformly random 6.7% reduction would imply, and any accuracy comparison involving this chemotype
-should be read with that caveat. A further 137 complexes failed non-deterministically and were being
-retried as of this draft; their disposition is not yet known. (k) **PDBBind data-source
+(§3.2), after all retries and code-level fixes 1,440/1,500 (96.0%) complexes yielded valid outputs;
+the remaining 60 (4.0%) were excluded from the final training data: 37 SVD-ill-conditioned, 12
+RDKit ligand-parsing failures (overlapping a previously identified 236-complex list
+disproportionately containing polysaccharide- and peptide-like ligands, consistent with PDBBind's
+own known ~16% RDKit defect rate, arXiv:2411.01223), 6 TorchScript `radius.py` `RuntimeError`
+failures, 4 receptor-size-limit skips, and 1 CSV-field `AttributeError` (§3.2). The direction of
+this bias, not its magnitude, is the operative concern for the RDKit-related subset: M1 has
+systematically fewer training examples on large, peptide-like ligands than a uniformly random 4%
+reduction would imply, and any accuracy comparison involving this chemotype should be read with
+that caveat. **RMSD self-consistency for this final 1,440-complex sample has not yet been
+recomputed** (§3.2) — this is a missing sanity check, not a null result, and should not be
+inferred from the earlier, now-superseded 1,343-complex figure. (k) **PDBBind data-source
 substitution.** M1/M1-abl's training structures come from a substitute Zenodo record (7014096)
 rather than the source cited in DiffDock's own README (record 6408497, confirmed deleted; §3.2),
 because the original is no longer available. The substitute was prepared with a different
@@ -843,8 +861,9 @@ notes and have not been independently re-verified in this pass.)
   Learning for Protein-Ligand Docking*. Nature Machine Intelligence 8, 32–41 (2026).
   doi:10.1038/s42256-025-01160-1. [PoseBench; DockGen-E curation]
 - Corso, G. et al. *DockGen benchmark*. arXiv:2402.18396 (2024). [original DockGen dataset; also
-  the source of the confidence-bootstrapping DockGen-accuracy figure cited in §2 — see the caveat
-  there, as this paper was not fully ingested into `wiki/papers/`]
+  the source of the Confidence Bootstrapping / DiffDock-S DockGen-clusters figure cited in §2
+  (9.8%→24.0%, Table 1, Fig. 4-D) — independently verified against the source PDF (PMC10925391)
+  on 2026-07-22]
 - Liu, Tang, Niu, Wang. *A Comparative Study of Deep Learning and Classical Modeling Approaches
   for Protein-Ligand Binding Pose and Affinity Prediction in Coronavirus Main Proteases*.
   J. Chem. Inf. Model. 2026, 66, 731–743.
