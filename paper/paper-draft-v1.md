@@ -73,6 +73,31 @@ tags: [thesis, manuscript, calibration, rescoring, plif, dockgen-e]
 
 ---
 
+> **ERRATUM (2026-07-23/24): the 1,500-complex PDBBind subset drawn for M1/M1-abl training data
+> (§3.2, §4.6(j)/(k)) is INVALIDATED as a training-data source — do not train M1 on it.**
+> Independent verification found that all 1,500 sampled complexes are contained in DiffDock-L's
+> own training split (`timesplit_no_lig_overlap_train`, 16,379 IDs) — the same split DiffDock-L's
+> score and confidence networks were fit on. Every number computed from this subset so far (the
+> feature-extraction success rate and the two successive GPU-inference-completion counts,
+> 1,440/1,500 = 96.0% and, after a later dedup-bug fix, 1,397/1,500 = 93.1%; §3.2, §4.6(j)) is
+> therefore not usable as training data for M1: poses and confidence scores sampled for structures
+> DiffDock-L has already seen in training are not representative of its behavior on unseen
+> complexes, which is the same memorization concern this manuscript's own Related Work section
+> (§2, citing PoseBench's accuracy/training-similarity correlation) raises against DiffDock-L's
+> raw accuracy claims elsewhere. No M1/M1-abl training or evaluation was ever run on this subset —
+> only data preparation reached completion — so no reported accuracy number is affected; only the
+> training-data preparation narrative in §3.2 and §4.6(j)/(k) is invalidated. **Superseded plan:**
+> M1/M1-abl training data will instead be drawn from DiffDock-L's own held-out validation split
+> (`timesplit_val_filter`, 585 complexes, confirmed not used in DiffDock-L training); DiffDock-L's
+> test split (363 complexes) is reserved for a possible future, separate evaluation of M1 itself
+> rather than reused as training data. GPU docking of the 585-complex validation split was in
+> progress, not complete, as of this draft. The §3.2/§4.6(j)/(k) prose below is left in place
+> rather than deleted, per this project's practice of recording invalidated work rather than
+> erasing it, and should be read as a record of the abandoned 1,500-complex approach, not as a
+> description of M1's actual training data.
+
+---
+
 ## Abstract
 
 DiffDock-L selects its output pose using a learned confidence score trained to predict whether
@@ -422,7 +447,10 @@ RMSD < 2 Å (primary) and PLIF recovery (secondary, exploratory given the small 
 headroom found in Step 0). No component of DiffDock-L itself — score network or confidence
 network — is retrained; only the reranking step is learned.
 
-**PDBBind subset data-source caveat.** For tractable inference cost, M1/M1-abl training uses a
+**PDBBind subset data-source caveat — [INVALIDATED, see the 2026-07-23/24 erratum above: this
+1,500-complex subset was itself drawn from `timesplit_no_lig_overlap_train`, DiffDock-L's own
+training split, and cannot be used as M1/M1-abl training data; superseded by a 585-complex
+validation-split plan].** For tractable inference cost, M1/M1-abl training uses a
 1,500-complex PDBBind subset drawn (seed=42, random sample) from the project's 16,379-ID PDBBind
 train list, rather than the full training set. While provisioning it, the data source cited in
 DiffDock's own GitHub README (Zenodo record 6408497, EquiBind-processed complexes) was confirmed
@@ -437,7 +465,9 @@ backbone-RMSD spot check between overlapping complex IDs) and is disclosed here 
 reproducibility caveat on M1/M1-abl's training data, to be resolved before those results are
 reported as findings. M1/M1-abl themselves remain unexecuted as of this draft.
 
-**Failure exclusions in the training subset.** GPU inference for M1/M1-abl over this 1,500-complex
+**Failure exclusions in the training subset — [the underlying 1,500-complex subset is INVALIDATED
+as training data, see the 2026-07-23/24 erratum above; the counts below describe abandoned data
+preparation, not M1's actual training set].** GPU inference for M1/M1-abl over this 1,500-complex
 subset is now complete. DiffDock-L's inference path has no fixed random seed (no `--seed` argument
 and no `torch.manual_seed` call; the one fixed seed present in `conformer_matching.py` is used only
 by a training-time function, confirmed unused at inference), so many inference failures are
@@ -737,7 +767,9 @@ used); a hybrid recomputation against the correct protein file has since produce
 figures (9.23% baseline, 12.57% oracle, §4.4a). The confidence-vs-PLIF-recovery correlation, the one
 other PLIF-derived quantity from the original computation, has also now been recomputed against the
 corrected data (rho = 0.046, n=81, not significant; see (h) above). (j) **PDBBind training-subset
-(M1/M1-abl) exclusion bias.** Of the 1,500-complex PDBBind subset drawn for M1/M1-abl training
+(M1/M1-abl) exclusion bias — [subset itself now INVALIDATED as training data, 2026-07-23/24
+erratum above; this bullet describes an abandoned data-preparation pass, kept as a record].** Of
+the 1,500-complex PDBBind subset drawn for M1/M1-abl training
 (§3.2), after all retries and code-level fixes 1,440/1,500 (96.0%) complexes yielded valid outputs;
 the remaining 60 (4.0%) were excluded from the final training data: 37 SVD-ill-conditioned, 12
 RDKit ligand-parsing failures (overlapping a previously identified 236-complex list
@@ -750,7 +782,9 @@ reduction would imply, and any accuracy comparison involving this chemotype shou
 that caveat. **RMSD self-consistency for this final 1,440-complex sample has not yet been
 recomputed** (§3.2) — this is a missing sanity check, not a null result, and should not be
 inferred from the earlier, now-superseded 1,343-complex figure. (k) **PDBBind data-source
-substitution.** M1/M1-abl's training structures come from a substitute Zenodo record (7014096)
+substitution — [written against the now-abandoned 1,500-complex train-split subset; whether the
+same Zenodo substitution applies unchanged to the superseded 585-complex validation-split plan has
+not been confirmed as of this draft].** M1/M1-abl's training structures come from a substitute Zenodo record (7014096)
 rather than the source cited in DiffDock's own README (record 6408497, confirmed deleted; §3.2),
 because the original is no longer available. The substitute was prepared with a different
 structure-preparation pipeline (Schrödinger Protein Prep Wizard vs. the original EquiBind
@@ -833,11 +867,17 @@ can be used directly without rerunning these scripts. DockGen-E is redistributed
 oracle-headroom gate and the two non-learned comparators B1 and B3 (§4.5) have been executed —
 result files `random_baseline_rmsd.json` and `gnina_b3_selected.csv`/`gnina_b3_summary.json` under
 `results/dockgen_pilot_eval/` — but no Phase 2 learned rescoring model (M1/M1-abl) code or trained
-artifact exists yet; this section will be updated once that model is trained and evaluated. M1's
-training data (a 1,500-complex PDBBind subset) is being provisioned from a substitute Zenodo source
-(record 7014096) because the source cited in DiffDock's own README (record 6408497) was found
-deleted; this substitution, and its unverified structure-preparation difference, are disclosed in
-§3.2 and must be carried into any future release of the M1 training data itself.
+artifact exists yet; this section will be updated once that model is trained and evaluated.
+**M1's originally planned training data (a 1,500-complex PDBBind subset, seed=42) is INVALIDATED
+(2026-07-23/24 erratum above): all 1,500 complexes were found to be contained in DiffDock-L's own
+training split (`timesplit_no_lig_overlap_train`), making them unusable as an out-of-distribution
+training source for M1.** The revised plan draws M1/M1-abl training data from DiffDock-L's own
+held-out validation split (`timesplit_val_filter`, 585 complexes) instead, with DiffDock-L's test
+split (363 complexes) reserved for a possible future evaluation of M1 rather than reused as
+training data; GPU docking of the 585-complex split was in progress, not complete, as of this
+draft. The Zenodo substitution disclosed in §3.2 (record 6408497, confirmed deleted, replaced by
+7014096) was made for the now-abandoned 1,500-complex subset; whether it applies unchanged to the
+585-complex plan has not been confirmed and must be re-checked before that data is released.
 
 ---
 
